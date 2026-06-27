@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Trading Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Trading Journal</h1>
+                <p class="text-sm text-gray-500 mt-1">Institutional Risk & State-Locked Log (INR)</p>
+                
+               <div class="flex flex-wrap gap-2 mt-4">
+    <button onclick="triggerImport()" class="text-xs bg-white border border-gray-300 text-gray-700 font-medium rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors shadow-sm">
+        📁 Import Local JSON
+    </button>
+    <input type="file" id="import-file" accept=".json" class="hidden" onchange="importJSON(event)">
+    <button onclick="exportJSON()" class="text-xs bg-white border border-gray-300 text-gray-700 font-medium rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors shadow-sm">
+        💾 Export Local Backup
+    </button>
+    <button onclick="exportCSV()" class="text-xs bg-gray-900 text-white font-medium rounded-lg px-3 py-1.5 hover:bg-gray-800 transition-colors shadow-sm">
+        📊 Export CSV
+    </button>
+    
+    <div class="w-px h-6 bg-gray-300 mx-1 self-center"></div> <button onclick="configureCloud()" class="text-xs bg-gray-200 text-gray-700 font-medium rounded-lg px-3 py-1.5 hover:bg-gray-300 transition-colors shadow-sm">
+        ⚙️ Config Cloud
+    </button>
+    <button onclick="loadFromCloud()" class="text-xs bg-blue-50 border border-blue-200 text-blue-700 font-medium rounded-lg px-3 py-1.5 hover:bg-blue-100 transition-colors shadow-sm">
+        ☁️ Pull Master
+    </button>
+    <button onclick="syncToCloud()" class="text-xs bg-blue-600 text-white font-medium rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors shadow-sm">
+        ☁️ Push Master
+    </button>
+</div>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full lg:w-auto">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Total Trades</p>
+                    <p class="text-xl font-semibold mt-1" id="stat-total">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Win Rate</p>
+                    <p class="text-xl font-semibold mt-1" id="stat-winrate">0%</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Avg Win / Loss</p>
+                    <p class="text-sm font-semibold mt-2 text-gray-700" id="stat-ratio">₹0 / ₹0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Net PnL</p>
+                    <p class="text-xl font-semibold mt-1 text-green-600" id="stat-pnl">₹0.00</p>
+                </div>
+            </div>
+        </header>
+
+        <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2 text-gray-700" id="form-title">New Trade Entry</h2>
+            <form id="trade-form" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <input type="hidden" id="edit-id" value="">
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-gray-500 mb-1">Stock Symbol</label>
+                    <input type="text" id="symbol" required class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase" placeholder="RELIANCE">
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-gray-500 mb-1">Buy Price (₹)</label>
+                    <input type="number" step="0.01" id="buy-price" required class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="2500.00">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-gray-500 mb-1">Quantity</label>
+                    <input type="number" id="qty" required class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="100">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-xs font-medium text-gray-500 mb-1">Stoploss (₹)</label>
+                    <input type="number" step="0.01" id="stoploss" required class="border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="2450.00">
+                </div>
+
+                <div class="flex flex-gap gap-2">
+                    <button type="submit" id="submit-btn" class="w-full bg-gray-900 text-white font-medium rounded-lg p-2 text-sm hover:bg-gray-800 transition-colors h-[38px]">Add Trade</button>
+                    <button type="button" id="cancel-btn" class="hidden bg-gray-200 text-gray-700 font-medium rounded-lg p-2 text-sm hover:bg-gray-300 transition-colors h-[38px]" onclick="resetForm()">Cancel</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b">
+                            <th class="p-4 font-medium">Symbol</th>
+                            <th class="p-4 font-medium">Invested</th>
+                            <th class="p-4 font-medium">Risk Setup</th>
+                            <th class="p-4 font-medium">Target Matrix (Automated)</th>
+                            <th class="p-4 font-medium text-center">Open Qty</th>
+                            <th class="p-4 font-medium text-right">Realized PnL</th>
+                            <th class="p-4 font-medium text-center">Trigger Matrix</th>
+                            <th class="p-4 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trade-list" class="divide-y divide-gray-100 text-sm">
+                        </tbody>
+                </table>
+                <div id="empty-state" class="p-8 text-center text-gray-500 text-sm">
+                    No trades recorded yet. Enter execution details above.
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        let trades = JSON.parse(localStorage.getItem('trading_journal_trades')) || [];
+
+        const form = document.getElementById('trade-form');
+        const tradeList = document.getElementById('trade-list');
+        const emptyState = document.getElementById('empty-state');
+        const submitBtn = document.getElementById('submit-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const formTitle = document.getElementById('form-title');
+        const editIdInput = document.getElementById('edit-id');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const id = editIdInput.value;
+            const symbol = document.getElementById('symbol').value.toUpperCase();
+            const buyPrice = parseFloat(document.getElementById('buy-price').value);
+            const qty = parseFloat(document.getElementById('qty').value);
+            const stoploss = parseFloat(document.getElementById('stoploss').value);
+
+            const risk = buyPrice - stoploss;
+            const target1 = buyPrice + risk;
+            const target2 = buyPrice + (risk * 2);
+            const target3 = buyPrice + (risk * 4);
+
+            if (id) {
+                const trade = trades.find(t => t.id == id);
+                if (trade) {
+                    trade.symbol = symbol;
+                    trade.buyPrice = buyPrice;
+                    trade.qty = qty;
+                    trade.stoploss = stoploss;
+                    trade.target1 = target1;
+                    trade.target2 = target2;
+                    trade.target3 = target3;
+                    calculateTradePnL(trade);
+                }
+            } else {
+                const trade = {
+                    id: Date.now(),
+                    symbol, buyPrice, qty, stoploss, target1, target2, target3,
+                    remainingQty: qty,
+                    t1Hit: false, t2Hit: false, t3Hit: false, slHit: false,
+                    actualSlPrice: null,
+                    isLocked: false,
+                    pnl: 0
+                };
+                trades.push(trade);
+            }
+
+            saveAndRender();
+            resetForm();
+        });
+
+        function calculateTradePnL(trade) {
+            let pnl = 0;
+            let currentRemaining = trade.qty;
+
+            if (trade.t1Hit) {
+                let offload = trade.qty * 0.30;
+                if (offload > currentRemaining) offload = currentRemaining;
+                pnl += offload * (trade.target1 - trade.buyPrice);
+                currentRemaining -= offload;
+            }
+
+            if (trade.t2Hit) {
+                let offload = trade.qty * 0.28;
+                if (offload > currentRemaining) offload = currentRemaining;
+                pnl += offload * (trade.target2 - trade.buyPrice);
+                currentRemaining -= offload;
+            }
+
+            if (trade.t3Hit) {
+                pnl += currentRemaining * (trade.target3 - trade.buyPrice);
+                currentRemaining = 0;
+            }
+
+            if (trade.slHit) {
+                // BUG FIX: Added null/undefined check for legacy trades
+                const finalSlPrice = (trade.actualSlPrice != null) ? trade.actualSlPrice : trade.stoploss;
+                pnl += currentRemaining * (finalSlPrice - trade.buyPrice);
+                currentRemaining = 0;
+            }
+
+            trade.pnl = pnl;
+            trade.remainingQty = Math.max(0, currentRemaining);
+        }
+
+        function toggleTrigger(id, triggerType) {
+            const trade = trades.find(t => t.id === id);
+            if (!trade || trade.isLocked) return;
+
+            if (triggerType === 'SL') {
+                if (!trade.slHit) {
+                    // BUG FIX: Added null/undefined check for legacy trades
+                    const defaultSl = (trade.actualSlPrice != null) ? trade.actualSlPrice : trade.stoploss;
+                    const userInput = prompt(`Enter Stoploss / Trailing SL Exit Price (Initial: ₹${trade.stoploss}):`, defaultSl);
+                    
+                    if (userInput === null) return; 
+                    const parsedSl = parseFloat(userInput);
+                    if (isNaN(parsedSl)) {
+                        alert("Invalid numeric entry.");
+                        return;
+                    }
+                    trade.actualSlPrice = parsedSl;
+                } else {
+                    trade.actualSlPrice = null; 
+                }
+                trade.slHit = !trade.slHit;
+            }
+            
+            if (triggerType === 'T1') trade.t1Hit = !trade.t1Hit;
+            if (triggerType === 'T2') trade.t2Hit = !trade.t2Hit;
+            if (triggerType === 'T3') trade.t3Hit = !trade.t3Hit;
+
+            calculateTradePnL(trade);
+            saveAndRender();
+        }
+
+        function lockTrade(id) {
+            const trade = trades.find(t => t.id === id);
+            if (!trade) return;
+
+            if (trade.remainingQty > 0) {
+                alert(`Cannot lock trade! You still have ${trade.remainingQty.toFixed(0)} open units inside the risk profile. Execute your SL or T3 terminal exit first.`);
+                return;
+            }
+
+            trade.isLocked = true;
+            saveAndRender();
+        }
+
+        function editTrade(id) {
+            const trade = trades.find(t => t.id === id);
+            if (!trade) return;
+
+            trade.isLocked = false;
+            saveAndRender();
+
+            document.getElementById('symbol').value = trade.symbol;
+            document.getElementById('buy-price').value = trade.buyPrice;
+            document.getElementById('qty').value = trade.qty;
+            document.getElementById('stoploss').value = trade.stoploss;
+
+            editIdInput.value = trade.id;
+            formTitle.innerText = `Edit & Unlock Trade: ${trade.symbol}`;
+            submitBtn.innerText = "Update Trade";
+            cancelBtn.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteTrade(id) {
+            if (confirm('Are you sure you want to permanently erase this trade record?')) {
+                trades = trades.filter(t => t.id !== id);
+                saveAndRender();
+            }
+        }
+
+        function resetForm() {
+            form.reset();
+            editIdInput.value = "";
+            formTitle.innerText = "New Trade Entry";
+            submitBtn.innerText = "Add Trade";
+            cancelBtn.classList.add('hidden');
+        }
+
+        function triggerImport() { document.getElementById('import-file').click(); }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        if (confirm('Importing data will replace current browser ledger state. Continue?')) {
+                            trades = importedData;
+                            saveAndRender();
+                        }
+                    } else { alert('Invalid ledger configuration file format.'); }
+                } catch (err) { alert('Error parsing input file code structures.'); }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function exportJSON() {
+            if (trades.length === 0) return alert("No system logging data present.");
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trades, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `journal_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportCSV() {
+            if (trades.length === 0) return alert("No operational logs present.");
+            const headers = ["Symbol", "Buy Price", "Quantity", "Stoploss", "Executed SL Price", "Target 1 (1:1)", "Target 2 (1:2)", "Target 3 (1:4)", "Realized PnL (INR)", "Is Locked"];
+            const rows = trades.map(t => [
+                t.symbol, t.buyPrice, t.qty, t.stoploss, t.actualSlPrice != null ? t.actualSlPrice : t.stoploss, t.target1, t.target2, t.target3, t.pnl.toFixed(2), t.isLocked || false
+            ]);
+            let csvContent = "\uFEFF" + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", url);
+            downloadAnchor.setAttribute("download", `journal_metrics_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('trading_journal_trades', JSON.stringify(trades));
+            renderTrades();
+        }
+
+        function renderTrades() {
+            tradeList.innerHTML = '';
+            emptyState.style.display = trades.length === 0 ? 'block' : 'none';
+
+            trades.forEach(trade => {
+                const invested = (trade.buyPrice * trade.qty).toFixed(2);
+                const riskAmount = ((trade.buyPrice - trade.stoploss) * trade.qty).toFixed(2);
+                
+                let pnlColor = 'text-gray-500';
+                if (trade.pnl > 0) pnlColor = 'text-green-600 font-semibold';
+                if (trade.pnl < 0) pnlColor = 'text-red-600 font-semibold';
+
+                // BUG FIX: Added null/undefined check for legacy trades formatting
+                const displaySlText = (trade.actualSlPrice != null) ? `₹${trade.actualSlPrice.toFixed(2)} (Trailed)` : `₹${trade.stoploss.toFixed(2)}`;
+
+                let matrixInterface = '';
+                if (trade.isLocked) {
+                    matrixInterface = `<span class="text-xs text-gray-400 italic bg-gray-100 px-3 py-1.5 rounded-md border border-gray-200">🔒 Ledger Locked</span>`;
+                } else {
+                    matrixInterface = `
+                        <div class="inline-flex rounded-md shadow-sm">
+                            <button onclick="toggleTrigger(${trade.id}, 'SL')" class="px-2 py-1 text-xs font-medium rounded-l-lg border ${trade.slHit ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-gray-200 hover:bg-red-50'}">SL</button>
+                            <button onclick="toggleTrigger(${trade.id}, 'T1')" class="px-2 py-1 text-xs font-medium border-t border-b ${trade.t1Hit ? 'bg-green-600 text-white border-green-600' : 'bg-white text-green-600 border-gray-200 hover:bg-green-50'}">T1</button>
+                            <button onclick="toggleTrigger(${trade.id}, 'T2')" class="px-2 py-1 text-xs font-medium border-t border-b ${trade.t2Hit ? 'bg-green-600 text-white border-green-600' : 'bg-white text-green-600 border-gray-200 hover:bg-green-50'}">T2</button>
+                            <button onclick="toggleTrigger(${trade.id}, 'T3')" class="px-2 py-1 text-xs font-medium rounded-r-lg border ${trade.t3Hit ? 'bg-green-600 text-white border-green-600' : 'bg-white text-green-600 border-gray-200 hover:bg-green-50'}">T3</button>
+                        </div>
+                    `;
+                }
+
+                const lockBtnClass = trade.remainingQty > 0 
+                    ? "text-xs text-gray-300 cursor-not-allowed font-medium" 
+                    : (trade.isLocked ? "text-xs text-emerald-600 font-bold" : "text-xs text-gray-700 hover:text-gray-900 font-medium");
+
+                const tr = document.createElement('tr');
+                tr.className = `transition-colors ${trade.isLocked ? 'bg-gray-50/50 opacity-90' : 'hover:bg-gray-50'}`;
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-gray-900">
+                        ${trade.symbol} ${trade.isLocked ? '🔒' : ''}
+                        <div class="text-xs text-gray-500 font-normal mt-0.5">${trade.qty} Units @ ₹${trade.buyPrice.toFixed(2)}</div>
+                    </td>
+                    <td class="p-4 text-gray-600">₹${invested}</td>
+                    <td class="p-4 text-xs text-gray-500">
+                        <div>SL Price: <span class="text-red-500 font-medium">${displaySlText}</span></div>
+                        <div class="text-gray-400 mt-0.5">Initial Risk: ₹${riskAmount}</div>
+                    </td>
+                    <td class="p-4 text-xs text-gray-600 space-y-0.5">
+                        <div><span class="font-medium text-gray-400">T1 (1:1 | 30%):</span> ₹${trade.target1.toFixed(2)}</div>
+                        <div><span class="font-medium text-gray-400">T2 (1:2 | 28%):</span> ₹${trade.target2.toFixed(2)}</div>
+                        <div><span class="font-medium text-gray-400">T3 (1:4 | Terminal):</span> ₹${trade.target3.toFixed(2)}</div>
+                    </td>
+                    <td class="p-4 text-center font-mono text-xs ${trade.remainingQty === 0 ? 'text-gray-400 line-through' : 'text-gray-700 font-bold'}">
+                        ${trade.remainingQty.toFixed(0)} / ${trade.qty}
+                    </td>
+                    <td class="p-4 text-right ${pnlColor}">₹${trade.pnl.toFixed(2)}</td>
+                    <td class="p-4 text-center">${matrixInterface}</td>
+                    <td class="p-4 text-right space-x-3 whitespace-nowrap">
+                        <button onclick="lockTrade(${trade.id})" ${trade.remainingQty > 0 || trade.isLocked ? 'disabled' : ''} class="${lockBtnClass}">
+                            ${trade.isLocked ? "Saved ✓" : "Submit & Lock"}
+                        </button>
+                        <button onclick="editTrade(${trade.id})" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                        <button onclick="deleteTrade(${trade.id})" class="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+                    </td>
+                `;
+                tradeList.appendChild(tr);
+            });
+
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const totalTrades = trades.length;
+            const activeTrades = trades.filter(t => t.t1Hit || t.t2Hit || t.t3Hit || t.slHit);
+            const winningTrades = activeTrades.filter(t => t.pnl > 0);
+            const losingTrades = activeTrades.filter(t => t.pnl < 0);
+
+            const winRate = activeTrades.length > 0 ? (winningTrades.length / activeTrades.length) * 100 : 0;
+
+            const totalWins = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
+            const totalLosses = losingTrades.reduce((sum, t) => sum + Math.abs(t.pnl), 0);
+            
+            const avgWin = winningTrades.length > 0 ? totalWins / winningTrades.length : 0;
+            const avgLoss = losingTrades.length > 0 ? totalLosses / losingTrades.length : 0;
+
+            const netPnl = trades.reduce((sum, t) => sum + t.pnl, 0);
+
+            document.getElementById('stat-total').innerText = totalTrades;
+            document.getElementById('stat-winrate').innerText = `${winRate.toFixed(1)}%`;
+            document.getElementById('stat-ratio').innerText = `₹${avgWin.toFixed(0)} / ₹${avgLoss.toFixed(0)}`;
+            
+            const pnlElement = document.getElementById('stat-pnl');
+            pnlElement.innerText = `₹${netPnl.toFixed(2)}`;
+            pnlElement.className = `text-xl font-semibold mt-1 ${netPnl >= 0 ? 'text-green-600' : 'text-red-600'}`;
+        }
+	
+	/* --- GITHUB GIST CLOUD SYNC LOGIC --- */
+
+function configureCloud() {
+    const gistId = prompt("Enter your GitHub Gist ID:");
+    const token = prompt("Enter your GitHub Personal Access Token (PAT):");
+    
+    if (gistId && token) {
+        localStorage.setItem('cloud_gist_id', gistId.trim());
+        localStorage.setItem('cloud_github_token', token.trim());
+        alert("GitHub Cloud credentials saved securely to this browser.");
+    }
+}
+
+async function syncToCloud() {
+    const gistId = localStorage.getItem('cloud_gist_id');
+    const token = localStorage.getItem('cloud_github_token');
+    
+    if (!gistId || !token) return alert("Please click 'Config Cloud' first.");
+    if (!confirm("This will overwrite the cloud master ledger with your current local trades. Continue?")) return;
+
+    const pushBtn = event.currentTarget;
+    const originalText = pushBtn.innerText;
+    pushBtn.innerText = "☁️ Syncing...";
+    
+    try {
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+            method: 'PATCH',
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                files: {
+                    'ledger.json': {
+                        content: JSON.stringify(trades, null, 2)
+                    }
+                }
+            })
+        });
+
+        if (response.ok) {
+            alert("Success: Master ledger updated on GitHub Cloud.");
+        } else {
+            alert("Error: Sync failed. Check Gist ID and Token permissions.");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Network error during sync.");
+    } finally {
+        pushBtn.innerText = originalText;
+    }
+}
+
+async function loadFromCloud() {
+    const gistId = localStorage.getItem('cloud_gist_id');
+    const token = localStorage.getItem('cloud_github_token');
+    
+    if (!gistId || !token) return alert("Please click 'Config Cloud' first.");
+    if (!confirm("This will replace your current browser trades with the master cloud ledger. Continue?")) return;
+
+    const pullBtn = event.currentTarget;
+    const originalText = pullBtn.innerText;
+    pullBtn.innerText = "☁️ Loading...";
+
+    try {
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const fileContent = data.files['ledger.json'].content;
+            trades = JSON.parse(fileContent);
+            saveAndRender();
+            alert("Success: Master ledger loaded from cloud.");
+        } else {
+            alert("Error: Could not retrieve cloud data.");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Network error fetching from cloud.");
+    } finally {
+        pullBtn.innerText = originalText;
+    }
+}
+
+        renderTrades();
+    </script>
+</body>
+</html>
